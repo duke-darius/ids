@@ -1,0 +1,100 @@
+@page "/users"
+@using Iceni.Lib.Models.Dto
+@using AlignItems = MudBlazor.AlignItems
+@using Iceni.Admin.Wasm.Components.Dialogs
+
+<MudText Typo="Typo.h5">Manage internal users</MudText>
+
+<MudStack Row Justify="Justify.FlexEnd">
+    <MudTextField Label="Query" @bind-Value="_query" Immediate DebounceInterval="300" Clearable></MudTextField>
+    
+    <MudButton StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="AddUser">Add new user</MudButton>
+</MudStack>
+
+@foreach (var user in _users)
+{
+    <MudCard Class="my-4">
+        <MudCardHeader>
+            <MudText Typo="Typo.h6">@(user.FullName ?? "No name") (@(user.Username ?? "No Username???"))</MudText>
+        </MudCardHeader>
+        <MudCardContent>
+            <p>User info goes here...</p>
+        </MudCardContent>
+        <MudCardActions>
+            <MudStack Row Justify="Justify.FlexEnd" AlignItems="AlignItems.End" Class="w-100">
+                <MudButton Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteForever"
+                           Disabled="@(user.Username == "root")" OnClick="() => DeleteUser(user)">Delete user</MudButton>
+            </MudStack>
+            
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    private string? _query;
+    private string? Query
+    {
+        get => _query;
+        set
+        {
+            _query = value;
+            _ = LoadUsers();
+        }
+    }
+    private IEnumerable<UserDto> _users = Enumerable.Empty<UserDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        var res = await ApiClient.Client.InternalUsers.QueryUsers(_query);
+        if (!res.Ok || res.Data == null)
+        {
+            Snackbar.Add($"Failed to load internal users: {res.Error?.Message}", Severity.Error);
+            return;
+        }
+
+        _users = res.Data.Rows;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void AddUser()
+    {
+        var dlg = await DialogService.ShowAsync<CreateInternalUserDialog>("Add new user", DefaultOptions.MediumDialog);
+        var dlgRes = await dlg.Result;
+        if (dlgRes.Canceled || dlgRes.Data is not CreateInternalUserDialog.Result output)
+        {
+            return;
+        }
+
+        var res = await ApiClient.Client.InternalUsers.CreateUser(output.Username, output.Password);
+        if (!res.Ok)
+        {
+            Snackbar.Add($"Failed to add user: {res.Error?.Message}", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Added new user 😅", Severity.Success);
+        await LoadUsers();
+    }
+
+    private async void DeleteUser(UserDto user)
+    {
+        var res = await DialogService.ShowMessageBox("Delete user?", $"Are you sure you want to delete user: {user.FullName} ({user.Username})", "Yes delete!", "NO!");
+        if (res != true) return;
+        
+        var deleteRes =await ApiClient.Client.InternalUsers.DeleteUser(user.Id);
+        if (deleteRes.Success)
+        {
+            Snackbar.Add("Deleted user successfully", Severity.Success);
+            await LoadUsers();
+            return;
+        }
+        
+        Snackbar.Add($"Failed to delete user: {deleteRes.Message}");
+    }
+
+}

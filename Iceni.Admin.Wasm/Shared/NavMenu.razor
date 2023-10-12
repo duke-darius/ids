@@ -1,0 +1,48 @@
+﻿@using System.Security.Claims
+<MudNavMenu Color="Color.Primary" Bordered Class="h-100">
+    <MudStack Justify="Justify.SpaceBetween" Class="h-100">
+        <div>
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.SpaceDashboard">Dashboard</MudNavLink>
+            
+        
+            <MudNavLink Href="/pupils" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Person">
+                Pupils
+            </MudNavLink>
+            
+            <MudNavLink Href="/calendar" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.CalendarMonth">
+                Calendar
+            </MudNavLink>
+            <MudNavLink Href="/payments" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Payments">
+                Payments
+            </MudNavLink>
+            <MudNavLink Href="/downloads" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Settings">
+                Settings
+            </MudNavLink>            
+        </div>
+        <div class="mb-8">
+            @if (User.HasClaim(ClaimTypes.Role, "root"))
+                {
+                    <MudDivider/>
+                    <MudText Typo="Typo.h6" Class="px-4 py-3">Administrator</MudText>
+                    <MudDivider/>
+
+                    <MudNavLink Href="/users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Person">
+                        Users
+                    </MudNavLink>
+                    <MudNavLink Href="/roles" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.AdminPanelSettings">
+                        Roles
+                    </MudNavLink>
+                }
+        </div>
+    </MudStack>
+    
+
+    
+</MudNavMenu>
+
+@code {
+
+    [Parameter]
+    public ClaimsIdentity User { get; set; } = null!;
+
+}

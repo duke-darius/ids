@@ -1,0 +1,123 @@
+@page "/calendar"
+@using Iceni.Admin.Wasm.Components.Dialogs
+@using Iceni.Lib.Models
+@using Iceni.Lib.Models.Api
+@using Iceni.Lib.Models.Dto
+@using Iceni.Lib.Models.Enums
+@using Iceni.Lib.Utils
+@using Newtonsoft.Json
+
+
+@if (_busy)
+{
+    <MudProgressLinear Indeterminate/>
+}
+<RadzenScheduler @ref="_scheduler" style="height: 768px;" TItem="LessonDto" Data="@_lessons" 
+                 StartProperty="Start" EndProperty="End" LoadData="LoadData" SlotSelect="OnSlotSelect"
+                  AppointmentRender="LessonRender" 
+                 AppointmentSelect="OnLessonSelect"
+    TextProperty="LessonTitle">
+    <RadzenWeekView />
+    <RadzenDayView />
+</RadzenScheduler>
+
+@code {
+
+    private bool _busy = true;
+    private RadzenScheduler<LessonDto> _scheduler = null!;
+    private IEnumerable<LessonDto>? _lessons = Enumerable.Empty<LessonDto>();
+
+
+    private async Task LoadItems(DateRange? dateRange)
+    {
+        _busy = true;
+        await InvokeAsync(StateHasChanged);
+        var items = await ApiClient.Client.Lessons.QueryLessonsForScheduler(dateRange?.Start ?? DateTime.Today.AddDays(-7), dateRange?.End ?? DateTime.Today.AddDays(10));
+        if (!items.Ok) 
+        {
+            Snackbar.Add("Failed to load lessons");
+            _busy = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        _lessons = items.Data ?? Enumerable.Empty<LessonDto>();
+        _busy = false;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private async void LoadData(SchedulerLoadDataEventArgs obj)
+    {
+        await LoadItems(new DateRange(obj.Start, obj.End));
+    }
+
+    private async Task OnLessonSelect(SchedulerAppointmentSelectEventArgs<LessonDto> lessonArgs)
+    {
+        var parameters = new DialogParameters()
+        {
+            {"Lesson", lessonArgs.Data},
+            {"Lessons", _lessons ?? Enumerable.Empty<LessonDto>() }
+        };
+        var dlg = await DialogService.ShowAsync<CreateOrUpdateLessonDialog>("Update lesson", parameters, DefaultOptions.MediumDialog);
+        var dlgRes = await dlg.Result;
+        if (dlgRes.Canceled)
+        {
+            return;
+        }
+
+        var lesson = (DlgResult<LessonDto>)dlgRes.Data;
+
+        if (lesson.Action == DialogAction.Delete)
+        {
+            var delRes = await ApiClient.Client.Lessons.DeleteLesson(lesson.Result.Id);
+            if(!delRes.Success)
+            {
+                Snackbar.Add("Failed to delete lesson", Severity.Error);
+            }
+        }
+        else
+        {
+
+            var res = await ApiClient.Client.Lessons.UpdateLesson(lesson.Result);
+            if (!res.Ok)
+            {
+                Snackbar.Add("Failed to update lesson", Severity.Error);
+            }
+
+        }
+
+        await _scheduler.Reload();
+    }
+
+    private async void OnSlotSelect(SchedulerSlotSelectEventArgs obj)
+    {
+        var parameters = new DialogParameters()
+        {
+            {"ChosenTime", obj.Start},
+            {"ChosenDuration", obj.End - obj.Start},
+            {"Lessons", _lessons ?? Enumerable.Empty<LessonDto>() }
+        };
+        var dlg = await DialogService.ShowAsync<CreateOrUpdateLessonDialog>("Add new lesson", parameters, DefaultOptions.MediumDialog);
+        var dlgRes = await dlg.Result;
+        if (dlgRes.Canceled)
+        {
+            return;
+        }
+
+        var lesson = (DlgResult<LessonDto>)dlgRes.Data;
+        if (!lesson.Ok)
+        {
+            return;
+        }
+        Console.WriteLine(JsonConvert.SerializeObject(lesson));
+        var res = await ApiClient.Client.Lessons.CreateNewLesson(lesson.Result);
+
+        await _scheduler.Reload();
+    }
+
+    private void LessonRender(SchedulerAppointmentRenderEventArgs<LessonDto> obj)
+    {
+        obj.Attributes["style"] = $"background: {obj.Data.LessonType.ToBackgroundColour()}; color: {obj.Data.LessonType.ToTextColour()}";
+    }
+
+}

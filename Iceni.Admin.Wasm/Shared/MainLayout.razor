@@ -1,0 +1,90 @@
+﻿@using System.Security.Claims
+@using Variant = MudBlazor.Variant
+@inherits LayoutComponentBase
+
+<MudThemeProvider IsDarkMode="_darkMode" Theme="DefaultOptions.Theme"/>
+<MudSnackbarProvider />
+<MudDialogProvider />
+<PageTitle>Admin | Iceni Driving School</PageTitle>
+<AuthControl>
+    <Authorised>
+        <MudLayout>
+            <MudAppBar Elevation="25">
+                <MudText Class="ms-3" Typo="Typo.h5">
+                    Iceni Admin
+                </MudText>
+                <MudIconButton Class="ms-5" Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" OnClick="@((e) => DrawerToggle())"/>
+        
+                <div class="px-12 flex-grow-1">
+                </div>
+        
+                <MudTooltip Text="Toggle dark mode">
+                    <MudIconButton Class="me-3"
+                                   Icon="@(_darkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)"
+                                   Color="Color.Inherit" OnClick="@((e) => ToggleDarkMode())"/>
+                </MudTooltip>
+                <MudMenu PopoverClass="mt-2" TransformOrigin="Origin.TopRight" AnchorOrigin="Origin.BottomRight" ListClass="pt-0">
+                    <ActivatorContent>
+                        <MudAvatar Variant="Variant.Outlined" Class="@(_darkMode ? "" : "border-white text-white")">
+                            @* @AvatarText(context) *@
+                            <MudImage Src="/img/iceni_logo_128.png"/>
+                        </MudAvatar>
+                    </ActivatorContent>
+                    <ChildContent>
+                        <UserCard />
+                        <MudDivider Class="mb-2" />
+                        <MudListItem Text="Logout" Icon="@Icons.Material.Filled.Logout" OnClick="Logout" />
+                    </ChildContent>
+                </MudMenu>
+            </MudAppBar>
+            <MudDrawer @bind-Open="_drawerOpen" Elevation="25" ClipMode="DrawerClipMode.Always">
+                <NavMenu User="context"/>
+            </MudDrawer>
+            <MudMainContent>
+                <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+                    @Body
+                </MudContainer>
+            </MudMainContent>
+        </MudLayout>
+    </Authorised>
+    <NotAuthorised>
+        <NavToLogout/>
+    </NotAuthorised>
+</AuthControl>
+
+@code {
+    bool _drawerOpen = true;
+
+    private bool _darkMode;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await LocalStorage.ContainKeyAsync("use-dark-mode"))
+        {
+            _darkMode = await LocalStorage.GetItemAsync<bool>("use-dark-mode");
+            await InvokeAsync(StateHasChanged);
+        }  
+    }
+
+    private string AvatarText(ClaimsIdentity user)
+    {
+        return string.Join("", (user.Name ?? "Unnamed").Split(" ", StringSplitOptions.RemoveEmptyEntries).Select(x => x.First()));
+    }
+
+    private void Logout()
+    {
+        Nav.NavigateTo("/auth/logout");
+    }
+
+    private async void ToggleDarkMode()
+    {
+        _darkMode = !_darkMode;
+        await LocalStorage.SetItemAsync("use-dark-mode", _darkMode);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}

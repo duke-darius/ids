@@ -1,0 +1,44 @@
+@page "/auth/login"
+@using Variant = MudBlazor.Variant
+
+@layout EmptyLayout
+
+
+
+<MudContainer MaxWidth="MaxWidth.Small" Style="height: 100vh">
+    <MudStack Class="h-100" Justify="Justify.Center">
+        <MudCard>
+            <MudCardContent Class="pa-4">
+                <MudText Typo="Typo.h4" Class="mb-4">Login</MudText>
+                <MudTextField @bind-Value="_username" Immediate Label="Username" AutoFocus/>
+                <MudTextField @bind-Value="_password" Immediate Label="Password" InputType="InputType.Password"/>
+
+                <MudButton FullWidth Variant="Variant.Outlined" 
+                           Class="my-4"
+                           Color="Color.Success" OnClick="Auth">Login</MudButton>
+            </MudCardContent>
+        </MudCard>
+    </MudStack>
+</MudContainer>
+
+@code {
+    private string? _username;
+    private string? _password;
+
+
+    public async void Auth()
+    {
+        var res = await ApiClient.Client.Auth.AuthWithPassword(_username ?? string.Empty, _password ?? string.Empty);
+        if (!res.Ok || res.Data is null)
+        {
+            Snackbar.Add("Failed to log in, check your password", Severity.Error);
+            return;
+        }
+
+        await ApiClient.SetToken(res.Data);
+        Nav.NavigateTo("/", true);
+
+        await InvokeAsync(StateHasChanged);
+
+    }
+}

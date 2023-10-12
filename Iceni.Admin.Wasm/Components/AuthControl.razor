@@ -1,0 +1,30 @@
+@using System.Security.Claims
+
+@if (!ApiClient.TokenInvalid)
+{
+    @Authorised(ApiClient.Client.Identity!)
+}
+else
+{
+    @NotAuthorised
+}
+
+
+@code {
+
+    [Parameter]
+    public RenderFragment<ClaimsIdentity> Authorised { get; set; } = null!;
+    
+    [Parameter]
+    public RenderFragment? NotAuthorised { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ApiClient.SyncAuth();
+        if (ApiClient.TokenInvalid)
+        {
+            Nav.NavigateTo("/auth/login", true);
+        }
+    }
+
+}

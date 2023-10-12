@@ -1,0 +1,124 @@
+@using Iceni.Lib.Models.Dto
+@using Iceni.Lib.Models.Enums
+@using Iceni.Lib.Utils
+@using Microsoft.AspNetCore.Components
+
+<MudPaper Class="pa-4" Elevation="25">
+    <MudStack>
+        
+        <MudChip Size="Size.Large" Color="@(Pupil.HoursCredit switch{
+                                              > 0 => Color.Success,
+                                              < 0 => Color.Error,
+                                              _ => Color.Primary
+                                              })">
+            <MudText Typo="Typo.h5">
+                Credit: @Pupil.HoursCredit hours    
+            </MudText>
+            
+        </MudChip>
+        <MudText Typo="Typo.h5" Class="mt-4">Add a payment</MudText>
+        <MudStack Row Justify="Justify.SpaceEvenly">
+            <MudSelect T="PaymentType" Label="Payment Type" @bind-Value="_newPayment.PaymentType">
+                @foreach (var e in Enum.GetValues<PaymentType>())
+                {
+                    <MudSelectItem Value="e">@e.ToDescription()</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudNumericField T="decimal" Label="Amount" Adornment="Adornment.Start"
+                             AdornmentIcon="@Icons.Material.Filled.CurrencyPound"
+                             @bind-Value="_newPayment.AmountPaid" Immediate HideSpinButtons/>
+            <MudNumericField T="double" Label="Hours" Adornment="Adornment.Start"
+                             AdornmentIcon="@Icons.Material.Filled.HourglassFull"
+                             @bind-Value="_newPayment.Hours" Immediate HideSpinButtons/>
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Success" OnClick="AddPayment">
+                Add payment
+            </MudButton>
+        </MudStack>
+
+
+        <MudTable @ref="_table" T="PaymentDto" ServerData="ServerData">
+            <HeaderContent>
+                <MudTh>
+                    Payment type
+                </MudTh>
+                <MudTh>
+                    Date
+                </MudTh>
+                <MudTh>
+                    Hours
+                </MudTh>
+                <MudTh>
+                    Amount
+                </MudTh>
+            </HeaderContent>
+            <NoRecordsContent>
+                <MudText>No payments found!</MudText>
+            </NoRecordsContent>
+            <RowTemplate>
+                <MudTd>@context.PaymentType.ToDescription()</MudTd>
+                <MudTd>@context.DateCreated.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd>@context.Hours.ToString("0.#")</MudTd>
+                <MudTd>@context.AmountPaid.ToString("C")</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager/>
+            </PagerContent>
+        </MudTable>
+    </MudStack>
+</MudPaper>
+
+
+@code {
+
+    private MudTable<PaymentDto> _table = null!;
+
+    [Parameter]
+    public PupilDto Pupil { get; set; } = null!;
+    
+    [Parameter]
+    public EventCallback OnCreditUpdated { get; set; }
+    
+    private PaymentDto _newPayment = new();
+    
+    private async void AddPayment()
+    {
+        if (_newPayment is { AmountPaid: 0, Hours: 0 })
+        {
+            Snackbar.Add("Amount paid and hours cannot be 0", Severity.Warning);
+            return;
+        }
+
+        var res = await ApiClient.Client.Payments.AddPayment(Pupil.Id, _newPayment.AmountPaid, _newPayment.Hours, _newPayment.PaymentType);
+        if (res is { Ok: true,Data: { } })
+        {
+            _newPayment = new PaymentDto();
+            await _table.ReloadServerData();
+            await OnCreditUpdated.InvokeAsync();
+        }
+        else
+        {
+            Snackbar.Add("Error adding payment", Severity.Error);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private async Task<TableData<PaymentDto>> ServerData(TableState arg)
+    {
+        var res = await ApiClient.Client.Payments.QueryPayments(pupilId: Pupil.Id, skip: arg.Page * arg.PageSize, take: arg.PageSize);
+        if (res is { Ok: true,Data: { } })
+            return new TableData<PaymentDto>()
+            {
+                Items = res.Data.Rows,
+                TotalItems = res.Data.Total
+            };
+        
+        Snackbar.Add("Failed to load payments", Severity.Error);
+        return new TableData<PaymentDto>()
+        {
+            Items = Enumerable.Empty<PaymentDto>(),
+            TotalItems = 0
+        };
+    }
+}

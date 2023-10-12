@@ -1,0 +1,72 @@
+@page "/pupils/{Id:guid}"
+@using Iceni.Lib.Models.Dto
+@using Variant = MudBlazor.Variant
+@using Iceni.Admin.Wasm.Components.Pupils
+
+
+<MudButton Class="mb-4" StartIcon="@Icons.Material.Filled.ArrowLeft" Href="/pupils">Back</MudButton>
+
+@if (_pupil == null)
+{
+    <MudProgressCircular Indeterminate />
+    return;
+}
+
+<PageTitle>
+    @_pupil.FullName | Iceni Driving School
+</PageTitle>
+
+<MudText Typo="Typo.h3" Class="mb-4">
+    Pupil: @_pupil.FullName
+</MudText>
+<MudPaper>
+    <MudStack>
+        
+        <MudTabs>
+            <MudTabPanel Text="Details">
+                <PupilDetails @bind-Pupil="_pupil" LoadPupil="LoadPupil"/>
+            </MudTabPanel>
+            <MudTabPanel Text="Lessons">
+                <PupilLessons Pupil="_pupil"/>
+            </MudTabPanel>
+            <MudTabPanel Text="Payments">
+                <PupilPayments Pupil="_pupil" OnCreditUpdated="OnCreditUpdated"/>
+            </MudTabPanel>
+        </MudTabs>
+    </MudStack>
+</MudPaper>
+
+
+
+@code {
+    
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private PupilDto? _pupil;
+    
+
+    private async Task LoadPupil()
+    {
+        var res = await ApiClient.Client.Pupils.GetPupil(Id);
+        if (!res.Ok || res.Data == null)
+        {
+            Snackbar.Add("Failed to load pupil information, please try again later.", Severity.Error);
+            return;
+        }
+
+        _pupil = res.Data;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPupil();
+    }
+
+    private async void OnCreditUpdated()
+    {
+        await LoadPupil();
+    }
+
+}

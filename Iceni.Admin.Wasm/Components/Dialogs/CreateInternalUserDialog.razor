@@ -1,0 +1,57 @@
+@using Iceni.Lib.Utils
+<MudDialog>
+    <DialogContent>
+
+        <MudGrid>
+            <MudItem md="12">
+                <MudTextField Label="Username" HelperText="This MUST be an email" 
+                              @bind-Value="_username"></MudTextField>
+            </MudItem>
+            <MudItem md="12">
+                <MudTextField Label="New password" HelperText="Leave empty to email the user for onboarding" 
+                              @bind-Value="_password" Clearable></MudTextField>
+            </MudItem>
+        </MudGrid>
+
+    </DialogContent>
+    <DialogActions>
+        <MudStack Row Justify="Justify.SpaceBetween" Class="w-100">
+            <div>
+                
+            </div>
+            <MudStack Row>
+                <MudButton OnClick="Cancel">Cancel</MudButton>
+                <MudButton Color="Color.Primary" OnClick="Submit" Disabled="_username == null">Save</MudButton>
+            </MudStack>
+        </MudStack>
+        
+    </DialogActions>
+</MudDialog>
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    public record Result(string Username, string? Password);
+
+    private string? _username;
+    private string? _password;
+
+    private void Submit()
+    {
+        if (_username == null)
+        {
+            Snackbar.Add("Username CANNOT be null!", Severity.Error);
+            return;
+        }
+        if (!_username.IsValidEmail())
+        {
+            Snackbar.Add("Username appears to be invalid, have another look", Severity.Error);
+            return;
+        }
+        
+        MudDialog.Close(DialogResult.Ok(new Result(_username, _password)));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

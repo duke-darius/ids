@@ -1,0 +1,43 @@
+﻿@page "/"
+@using Iceni.Lib.Models.Dto
+@using System.Collections
+@using Iceni.Lib.Models.Enums
+@using Iceni.Lib.Utils
+
+<PageTitle>Admin | Iceni Driving School</PageTitle>
+
+<h1>Welcome @ApiClient.GetName()</h1>
+
+
+<MudExpansionPanel Text="Today's schedule" Class="border border-solid mud-border-primary">
+    <RadzenScheduler style="height: 768px;" TItem="LessonDto" Data="@_lessons" 
+                     StartProperty="Start" EndProperty="End"
+                     LoadData="LoadData"
+                     AppointmentRender="LessonRender"
+                     TextProperty="LessonTitle">
+        <RadzenDayView />
+    </RadzenScheduler>
+</MudExpansionPanel>
+
+
+
+@code {
+
+    private IEnumerable<LessonDto>? _lessons;
+    
+    private async void LoadData(SchedulerLoadDataEventArgs obj)
+    {
+        var res = await ApiClient.Client.Lessons.QueryLessonsForScheduler(obj.Start, obj.End);
+        if (res is not { Ok: true,Data: { } }) return;
+        _lessons = res.Data;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private static void LessonRender(SchedulerAppointmentRenderEventArgs<LessonDto> obj)
+    {
+        
+        obj.Attributes["style"] = $"background: {obj.Data.LessonType.ToBackgroundColour()}; color: {obj.Data.LessonType.ToTextColour()}";
+
+    }
+
+}

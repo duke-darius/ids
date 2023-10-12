@@ -1,0 +1,59 @@
+@page "/payments"
+@using Iceni.Lib.Models.Dto
+@using Iceni.Lib.Utils
+
+<PageTitle>Payments | Iceni Driving School</PageTitle>
+
+<MudText Typo="Typo.h3">Manage payments</MudText>
+
+
+<MudTable T="PaymentDto" ServerData="ServerData">
+    <HeaderContent>
+        <MudTh>
+            Payment type
+        </MudTh>
+        <MudTh>
+            Date
+        </MudTh>
+        <MudTh>
+            Pupil
+        </MudTh>
+        <MudTh>
+            Hours
+        </MudTh>
+        <MudTh>
+            Amount
+        </MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.PaymentType.ToDescription()</MudTd>
+        <MudTd>@context.DateCreated.ToString("dd/MM/yyyy")</MudTd>
+        <MudTd>@context.PupilName</MudTd>
+        <MudTd>@context.Hours.ToString("0.#")</MudTd>
+        <MudTd>@context.AmountPaid.ToString("C")</MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager/>
+    </PagerContent>
+</MudTable>
+
+@code {
+
+    private async Task<TableData<PaymentDto>> ServerData(TableState arg)
+    {
+        var res = await ApiClient.Client.Payments.QueryPayments(skip: arg.Page * arg.PageSize, take: arg.PageSize);
+        if (res is { Ok: true,Data: { } })
+            return new TableData<PaymentDto>()
+            {
+                Items = res.Data.Rows,
+                TotalItems = res.Data.Total
+            };
+        
+        Snackbar.Add("Failed to load payments", Severity.Error);
+        return new TableData<PaymentDto>()
+        {
+            Items = Enumerable.Empty<PaymentDto>(),
+            TotalItems = 0
+        };
+    }
+}

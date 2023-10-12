@@ -1,0 +1,160 @@
+@using Variant = MudBlazor.Variant
+@using Iceni.Lib.Models.Dto
+@using Iceni.Lib.Models.Enums
+@using Iceni.Lib.Utils
+<MudPaper Class="pa-4" Elevation="25">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudStack Row Justify="Justify.SpaceBetween">
+                @if (!_isEdit)
+                {
+                    <MudText Typo="Typo.h4">@Pupil.FullName</MudText>
+                }
+                else
+                {
+                    <MudTextField @bind-Value="Pupil.FullName" Immediate 
+                                  Variant="Variant.Outlined" Label="Full name" 
+                                  autocomplete=@("mud-disabled-"+Guid.NewGuid()) />
+                }
+                <MudStack Row>
+                    @if (_isEdit)
+                    {
+                        <MudButton Color="Color.Error" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.DeleteForever" OnClick="DeletePupil">Delete pupil</MudButton>
+                        <MudButton Color="Color.Warning" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetPupilChanges">Cancel</MudButton>
+                        <MudButton Color="Color.Success" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveChanges">Save changes</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Color="Color.Warning" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="EnterEditMode">Edit pupil</MudButton>
+                    }
+                </MudStack>
+
+            </MudStack>
+        </MudItem>
+        <MudItem md="4">
+            <MudTextField @bind-Value="Pupil.EmailAddress" InputType="InputType.Email" 
+                          Disabled="!_isEdit" Label="Email address" Variant="TextFieldVariant" 
+                          autocomplete=@("mud-disabled-"+Guid.NewGuid()) />
+        </MudItem>
+        <MudItem md="4">
+            <MudTextField @bind-Value="Pupil.Telephone" InputType="InputType.Telephone" 
+                          Disabled="!_isEdit" Label="Mobile number" Variant="TextFieldVariant"
+                          autocomplete=@("mud-disabled-"+Guid.NewGuid()) />
+        </MudItem>
+        <MudItem md="4">
+            <MudTextField @bind-Value="Pupil.AltTelephone" 
+                          InputType="InputType.Telephone" Disabled="!_isEdit"
+                          Label="Alternate phone" Variant="TextFieldVariant"
+                          autocomplete=@("mud-disabled-"+Guid.NewGuid()) />
+        </MudItem>
+        
+        <MudItem md="4">
+            <MudSelect T="PupilType" @bind-Value="Pupil.Type" Disabled="!_isEdit"
+                       Label="Pupil type" Variant="TextFieldVariant">
+                @foreach (var t in Enum.GetValues<PupilType>())
+                {
+                    <MudSelectItem T="PupilType" Value="t">@t.ToDescription()</MudSelectItem>
+                }
+            </MudSelect>
+            
+        </MudItem>
+    </MudGrid>
+    
+    <MudTabs Class="mt-4">
+        <MudTabPanel Text="Address">
+            <MudGrid Class="mt-4">
+                <MudItem md="8">
+                    <MudStack>
+                        <MudTextField @bind-Value="Pupil.AddressLine1" 
+                                      InputType="InputType.Text" Disabled="!_isEdit"
+                                      Label="Address 1" Variant="TextFieldVariant" 
+                                      autocomplete=@("mud-disabled-"+Guid.NewGuid()) />
+                        
+                        <MudTextField @bind-Value="Pupil.AddressLine2" 
+                                      InputType="InputType.Text" Disabled="!_isEdit"
+                                      Label="Address 2" Variant="TextFieldVariant" 
+                                      autocomplete=@("mud-disabled-"+Guid.NewGuid()) />
+                        
+                        <MudTextField @bind-Value="Pupil.AddressLine3" 
+                                      InputType="InputType.Text" Disabled="!_isEdit"
+                                      Label="Address 3" Variant="TextFieldVariant" 
+                                      autocomplete=@("mud-disabled-"+Guid.NewGuid()) />
+                        
+                        <MudTextField @bind-Value="Pupil.City" 
+                                      InputType="InputType.Text" Disabled="!_isEdit"
+                                      Label="City" Variant="TextFieldVariant" 
+                                      autocomplete=@("mud-disabled-"+Guid.NewGuid()) />
+                        
+                        <MudTextField @bind-Value="Pupil.Postcode" 
+                                      InputType="InputType.Text" Disabled="!_isEdit"
+                                      Label="Postcode" Variant="TextFieldVariant" 
+                                      autocomplete=@("mud-disabled-"+Guid.NewGuid()) />
+                        
+                        
+                        
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+    </MudTabs>
+</MudPaper>
+
+@code {
+    
+
+    [Parameter]
+    public PupilDto Pupil { get; set; } = null!;
+    
+    [Parameter]
+    public EventCallback<PupilDto> PupilChanged { get; set; }
+    
+    [Parameter]
+    public EventCallback LoadPupil { get; set; }
+
+    private bool _isEdit;
+
+    private Variant TextFieldVariant => _isEdit ? Variant.Filled : Variant.Text;
+    
+    
+    
+    private async void SaveChanges()
+    {
+        var res = await ApiClient.Client.Pupils.UpdatePupil(Pupil);
+        if (!res.Ok || res.Data == null)
+        {
+            Snackbar.Add("Failed to update pupil information, please try again later.", Severity.Error);
+            return;
+        }
+        
+        Snackbar.Add("Updated pupil successfully", Severity.Success);
+        Pupil = res.Data;
+        await PupilChanged.InvokeAsync(Pupil);
+        _isEdit = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void EnterEditMode()
+    {
+        _isEdit = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void ResetPupilChanges()
+    {
+        _isEdit = false;
+        await LoadPupil.InvokeAsync();
+    }
+
+    private async void DeletePupil()
+    {
+        var res = await ApiClient.Client.Pupils.DeletePupil(Pupil.Id);
+        if (!res.Success)
+        {
+            Snackbar.Add("Failed to delete pupil, please try again later.", Severity.Error);
+            return;
+        }
+
+        Nav.NavigateTo("/pupils");
+    }
+
+}

@@ -1,0 +1,9 @@
+<h1>You're auth token has expired, we're now redirecting you to the login page</h1>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Nav.NavigateTo("/auth/logout", true);
+    }
+
+}

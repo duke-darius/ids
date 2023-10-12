@@ -1,0 +1,13 @@
+@page "/auth/logout"
+
+@layout EmptyLayout
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine("LOG OUT");
+        await ApiClient.Logout();
+        Nav.NavigateTo("/auth/login", true);
+    }
+
+}

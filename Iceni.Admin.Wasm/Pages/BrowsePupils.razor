@@ -1,0 +1,114 @@
+@page "/pupils"
+@using Iceni.Lib.Models.Dto
+@using Iceni.Lib.Models.Enums
+
+<PageTitle>Pupils | Iceni Driving School</PageTitle>
+
+<MudText Typo="Typo.h3">Manage pupils</MudText>
+
+<MudTextField @bind-Value="Search" Immediate Label="Query" DebounceInterval="300"></MudTextField>
+
+<MudButton OnClick="AddPupil">New pupil</MudButton>
+
+<MudSelect @bind-Value="PupilType" T="PupilType?" Clearable Label="Pupil type">
+    @foreach (var value in Enum.GetValues<PupilType>())
+    {
+        <MudSelectItem T="PupilType?" Value="value">@value.ToString()</MudSelectItem>
+    }
+</MudSelect>
+
+<MudTable @ref="_tableRef" T="PupilDto" ServerData="ServerData" RowClassFunc="TableRowClassFunc" OnRowClick="@((a) => Nav.NavigateTo($"/pupils/{a.Item.Id}"))">
+    <HeaderContent>
+        <MudTh>
+            Name
+        </MudTh>
+        <MudTh>
+            Status
+        </MudTh>
+        <MudTh>
+            Mobile
+        </MudTh>
+        <MudTh>
+            Postcode
+        </MudTh>
+        <MudTh>
+            Hours credit
+        </MudTh>
+    </HeaderContent>
+    <RowTemplate> 
+        <MudTd> 
+            @context.FullName
+        </MudTd>
+        <MudTd>
+            @context.Type.ToString()
+        </MudTd>
+        <MudTd>
+            @(context.Telephone ?? "N/A") 
+        </MudTd>
+        <MudTd>
+            @(context.Postcode ?? "N/A")
+        </MudTd>
+        <MudTd>
+            @context.HoursCredit hours
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private MudTable<PupilDto> _tableRef = null!;
+
+    private string? _search;
+    private PupilType? _pupilType;
+
+
+    public string? Search
+    {
+        get => _search;
+        set
+        {
+            _search = value;
+            _ =_tableRef.ReloadServerData();
+        }
+    }
+
+    public PupilType? PupilType
+    {
+        get => _pupilType;
+        set
+        {
+            _pupilType = value;
+            _ = _tableRef.ReloadServerData();
+        }
+    }
+
+    private async void AddPupil()
+    {
+        await ApiClient.Client.Pupils.CreateNewPupil();
+    }
+
+    public async Task<TableData<PupilDto>> ServerData(TableState state)
+    {
+        var res = await ApiClient.Client.Pupils.QueryPupils(_search, _pupilType, skip: state.Page * state.PageSize, take: state.PageSize);
+        if (!res.Ok || res.Data == null)
+        {
+            Snackbar.Add("An error occurred fetching pupils, please try again later", Severity.Error);
+            return new TableData<PupilDto>()
+            {
+                Items = Enumerable.Empty<PupilDto>(),
+                TotalItems = 0
+            };
+        }
+
+        return new TableData<PupilDto>()
+        {
+            Items = res.Data.Rows,
+            TotalItems = res.Data.Total
+        };
+    }
+
+    private static string TableRowClassFunc(PupilDto dto, int arg2)
+    {
+        return dto.HoursCredit < 0 ? "table-row-error" : string.Empty;
+    }
+
+}

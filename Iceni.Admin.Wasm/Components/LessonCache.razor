@@ -1,0 +1,32 @@
+@using Iceni.Lib.Models.Dto
+
+@if (_lessons != null && ChildContent != null)
+{
+    @ChildContent(_lessons)
+}
+
+@code {
+    [Parameter]
+    public RenderFragment<IEnumerable<LessonDto>>? ChildContent { get; set; }
+
+    private IEnumerable<LessonDto>? _lessons;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await LocalStorage.ContainKeyAsync("lesson-cache"))
+        {
+            _lessons = await LocalStorage.GetItemAsync<IEnumerable<LessonDto>>("lesson-cache");
+        }
+        else
+        {
+            var res = await ApiClient.Client.Lessons.QueryLessonsForScheduler(DateTime.Now.AddDays(-14), DateTime.Now.AddDays(21));
+            if (res is { Ok: true,Data: { } })
+            {
+                _lessons = res.Data;
+            }
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+}

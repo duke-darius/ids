@@ -1,0 +1,50 @@
+<MudCard Elevation="0" Class="@Class">
+    <MudCardHeader>
+        <CardHeaderAvatar>
+            @if (string.IsNullOrEmpty(ImageDataUrl))
+            {
+                <MudAvatar Size="Size.Large" Color="Color.Primary">@_avatarText</MudAvatar>
+            }
+            else
+            {
+                <MudAvatar Image="@ImageDataUrl" Style="height:50px; width:50px;"> </MudAvatar>
+            }
+        </CardHeaderAvatar>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h5" Class="text-truncate d-block fw-normal">@Name</MudText>
+            <MudText Typo="Typo.body1" Class="text-truncate d-block">
+                <span class="text-muted">
+                    @Email
+                </span>
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+</MudCard>
+
+@code {
+    [Parameter]
+    public string? Class { get; set; }
+    private string? Name { get; set; }
+    private string? Email { get; set; }
+    private string? _avatarText { get; set; }
+
+    [Parameter]
+    public string? ImageDataUrl { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        Name = ApiClient.GetName();
+        _avatarText = string.Join("", Name.Split(' ').Where(x=> !string.IsNullOrWhiteSpace(x)).Select(s => s[0]).Take(2));
+        Email = ApiClient.GetEmail();
+
+        await InvokeAsync(StateHasChanged);
+    }
+}

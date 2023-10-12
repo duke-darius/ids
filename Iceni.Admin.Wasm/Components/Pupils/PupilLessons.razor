@@ -1,0 +1,65 @@
+@using Iceni.Lib.Models.Dto
+
+<MudTable T="LessonDto" ServerData="ServerData">
+    <HeaderContent>
+        <MudTh>
+            Details
+        </MudTh>
+        <MudTh>
+            Hours
+        </MudTh>
+        <MudTh>
+            Lesson type
+        </MudTh>
+        <MudTh>
+            Paid
+        </MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>
+            <MudStack>
+                <MudText>@context.LessonTitle</MudText>
+                <MudText>@context.Start.ToString("dd/MM/yyyy HH:mm")</MudText>
+            </MudStack>
+        </MudTd>
+        <MudTd>
+            @context.Duration.TotalHours.ToString("0.#")
+        </MudTd>
+        <MudTd>
+            @context.LessonType.ToString()
+        </MudTd>
+        <MudTd>
+            
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager/>
+    </PagerContent>
+</MudTable>
+
+@code {
+
+    [Parameter]
+    public PupilDto Pupil { get; set; } = null!;
+    
+    private async Task<TableData<LessonDto>> ServerData(TableState arg)
+    {
+        var lessons = await ApiClient.Client.Lessons.QueryLessons(pupilId: Pupil.Id, skip: arg.Page * arg.PageSize, take: arg.PageSize);
+        if (!lessons.Ok || lessons.Data == null)
+        {
+            Snackbar.Add("Failed to load lessons for pupil", Severity.Error);
+            return new TableData<LessonDto>()
+            {
+                Items = Enumerable.Empty<LessonDto>(),
+                TotalItems = 0
+            };
+        }
+
+        return new TableData<LessonDto>()
+        {
+            Items = lessons.Data.Rows,
+            TotalItems = lessons.Data.Total
+        };
+    }
+
+}

@@ -1,0 +1,375 @@
+@using Iceni.Lib.Models.Dto
+@using Newtonsoft.Json
+@using Iceni.Lib.Models.Enums
+@using Iceni.Lib.Utils
+@using Itenso.TimePeriod
+@using Variant = MudBlazor.Variant
+@using Iceni.Lib.Models
+<MudDialog>
+    <DialogContent>
+        <MudTabs>
+            <MudTabPanel Text="Lesson">
+                <MudGrid Class="mt-4">
+                    <MudItem sm="6">
+                        <MudSelect T="LessonType" @bind-Value="_currentLesson.LessonType" Variant="Variant.Outlined" Label="Lesson type">
+                            @foreach (var t in Enum.GetValues<LessonType>())
+                            {
+                                <MudSelectItem T="LessonType" Value="t">@t.ToReadableString()</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem sm="6">
+                        <MudSelect T="Guid?" @bind-Value="_currentLesson.PupilId" Variant="Variant.Outlined" Label="Pupil" Clearable>
+                            @foreach (var pupil in _currentPupils)
+                            {
+                                <MudSelectItem T="Guid?" Value="pupil.Id">@pupil.FullName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem sm="12">
+                        <MudDatePicker @bind-Date="Date" Label="Start date" Variant="Variant.Outlined" DateFormat="dd-MM-yyyy"></MudDatePicker>
+                    </MudItem>
+
+                    <MudItem xs="3">
+                        <MudSelect T="int" @bind-Value="StartHour" Label="Start hour" Variant="Variant.Outlined">
+                            @for (var i = 7; i <= 19; i++)
+                            {
+                                var i1 = i;
+                                <MudSelectItem T="int" Value="i">@(DateTime.Today.Add(TimeSpan.FromHours(i1)).ToString("h tt"))</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem sm="3">
+                        <MudSelect T="int" @bind-Value="StartMinute" Label="Start minute" Variant="Variant.Outlined">
+                            @for (var i = 00; i < 60; i += 5)
+                            {
+                                var i1 = i;
+                                <MudSelectItem T="int" Value="i">@i1.ToString("00")</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="6">
+                        <MudSelect T="TimeSpan" @bind-Value="LessonTime" Label="Duration (hours:minutes)" Variant="Variant.Outlined">
+                            @for (var i = 1; i <= 12; i++)
+                            {
+                                var ts = TimeSpan.FromHours(.5 * i);
+                                <MudSelectItem T="TimeSpan" Value="ts">@ts.Hours:@ts.Minutes.ToString("00") (@StartTime.Add(ts).ToString("hh:mm tt"))</MudSelectItem>
+                            }
+
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        @if (Clashes)
+                        {
+                            <MudText Color="Color.Error" Typo="Typo.h6">Selected lesson time appears to clash with an existing lesson</MudText>
+                        }
+                    </MudItem>
+
+
+                    @if (Pupil != null)
+                    {
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.h4">Pupil information</MudText>
+                        </MudItem>
+                        <MudItem sm="6">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h6">Address</MudText>
+                                @if (!string.IsNullOrEmpty(Pupil.AddressLine1))
+                                {
+                                    <MudText Class="my-0">@Pupil.AddressLine1</MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(Pupil.AddressLine2))
+                                {
+                                    <MudText Class="my-0">@Pupil.AddressLine2</MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(Pupil.AddressLine3))
+                                {
+                                    <MudText Class="my-0">@Pupil.AddressLine3</MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(Pupil.City))
+                                {
+                                    <MudText Class="my-0">@Pupil.City</MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(Pupil.Postcode))
+                                {
+                                    <MudText Class="my-0">@Pupil.Postcode</MudText>
+                                }
+                            </MudStack>
+                        </MudItem>
+                        <MudItem sm="6">
+                            <MudStack Spacing="0">
+                                <table>
+                                    <tbody>
+                                    <tr>
+                                        <td><b>Mobile:</b></td>
+                                        <td>@(Pupil.Telephone ?? "N/A")</td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Alt mobile:</b></td>
+                                        <td>@(Pupil.AltTelephone ?? "N/A")</td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Email:</b></td>
+                                        <td>@Pupil.EmailAddress</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </MudStack>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudTabPanel>
+            @if (_currentPupil != null)
+            {
+                <MudTabPanel Text="Payments">
+                    <MudStack>
+                        <MudStack>
+                            <MudText Typo="Typo.h5" Class="mt-4">Add a payment</MudText>
+                            <MudStack Row Justify="Justify.SpaceEvenly">
+                                <MudSelect T="PaymentType" Label="Payment Type" @bind-Value="_newPayment.PaymentType">
+                                    @foreach (var e in Enum.GetValues<PaymentType>())
+                                    {
+                                        <MudSelectItem Value="e">@e.ToDescription()</MudSelectItem>
+                                    }
+                                </MudSelect>
+
+                                <MudNumericField T="decimal" Label="Amount" Adornment="Adornment.Start"
+                                                 AdornmentIcon="@Icons.Material.Filled.CurrencyPound"
+                                                 @bind-Value="_newPayment.AmountPaid" Immediate HideSpinButtons/>
+                                <MudNumericField T="double" Label="Hours" Adornment="Adornment.Start"
+                                                 AdornmentIcon="@Icons.Material.Filled.HourglassFull" 
+                                                 @bind-Value="_newPayment.Hours" Immediate HideSpinButtons/>
+                                <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Success" OnClick="AddPayment">
+                                    Add payment
+                                </MudButton>
+                            </MudStack>
+                            <MudDivider/>
+                            <MudStack>
+                                <div>
+                                    <MudChip Color="@(_currentPupil.HoursCredit > 0 ? Color.Success : Color.Error)">
+                                        @(_currentPupil.HoursCredit > 0 ? "Lesson settled" : $"Pupil requires {Math.Abs(_currentPupil.HoursCredit):0.#} hours to settle")
+                                    </MudChip>
+                                </div>
+                                @if (_payments != null)
+                                {
+                                    <MudText Typo="Typo.h5">Payment history</MudText>
+                                    <MudList>
+                                        @foreach (var payment in _payments)
+                                        {
+                                            <MudListItem>
+                                                <MudStack Row Justify="Justify.SpaceBetween">
+                                                    <div>
+                                                        @payment.PaymentType.ToDescription()
+                                                    </div>
+                                                    <div>
+                                                        £@payment.AmountPaid.ToString("0.00")
+                                                    </div>
+                                                    <div>
+                                                        @payment.Hours.ToString("0.#") hours
+                                                    </div>
+                                                    <div>
+                                                        @payment.DateCreated.ToString("dd/MM/yyyy HH:mm")
+                                                    </div>
+                                                    <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.DeleteForever"
+                                                                   Size="Size.Small" OnClick="() => DeletePayment(payment)"/>
+                                                </MudStack>
+                                            </MudListItem>
+                                        }
+                                    </MudList>
+                                }
+                            </MudStack>
+                        </MudStack>
+
+                    </MudStack>
+
+
+                </MudTabPanel>
+            }
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudStack Row Justify="Justify.SpaceBetween" Class="w-100">
+            <div>
+                @if (Lesson != null)
+                {
+                    <MudButton StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="Delete">Delete lesson</MudButton>
+                }
+            </div>
+            <MudStack Row>
+                <MudButton OnClick="Cancel">Cancel</MudButton>
+                <MudButton Color="Color.Primary" OnClick="Submit" Disabled="Clashes">Save</MudButton>
+            </MudStack>
+        </MudStack>
+
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public LessonDto? Lesson { get; set; }
+    
+    [Parameter]
+    public DateTime? ChosenTime { get; set; }
+    
+    [Parameter]
+    public TimeSpan? ChosenDuration { get; set; }
+
+    [Parameter]
+    public IEnumerable<LessonDto> Lessons { get; set; } = null!;
+
+    private PupilDto? _currentPupil;
+    
+    private bool Clashes
+    {
+        get
+        {
+            var t = Date!.Value.Date.Add(TimeSpan.FromHours(StartHour)).Add(TimeSpan.FromMinutes(StartMinute));
+            var range = new TimeRange(t, t.Add(LessonTime));
+            return Lessons.Where(x=> x.Id != Lesson?.Id).Any(x => range.OverlapsWith(new TimeRange(x.Start, x.End)));
+        }
+    }
+
+    private IEnumerable<PupilDto> _currentPupils = Enumerable.Empty<PupilDto>();
+
+    private PupilDto? Pupil => _currentPupils.FirstOrDefault(x => x.Id == _currentLesson.PupilId);
+
+    private DateTime? Date { get; set; }
+
+    private IEnumerable<PaymentDto>? _payments;
+    private PaymentDto _newPayment = new();
+
+    private int StartHour { get; set; } = 9;
+    private int StartMinute { get; set; } = 0;
+
+    private DateTime StartTime => DateTime.Today.Add(TimeSpan.FromHours(StartHour)).Add(TimeSpan.FromMinutes(StartMinute));
+    
+    private TimeSpan LessonTime { get; set; } = TimeSpan.FromHours(1.5);
+
+    private LessonDto _currentLesson = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _currentLesson = Lesson == null ? new LessonDto() : 
+            JsonConvert.DeserializeObject<LessonDto>(JsonConvert.SerializeObject(Lesson)) ?? throw new Exception("");
+
+        if (ChosenTime.HasValue && ChosenDuration.HasValue)
+        {
+            Date = ChosenTime.Value.Date;
+            StartHour = ChosenTime.Value.Hour;
+            StartMinute = ChosenTime.Value.Minute;
+            LessonTime = ChosenDuration.Value;
+        }
+        else
+        {
+            Date = _currentLesson.Start.Date;
+            StartHour = _currentLesson.Start.Hour;
+            StartMinute = _currentLesson.Start.Minute;
+            LessonTime = _currentLesson.End - _currentLesson.Start;
+        }
+
+        var pupils = await ApiClient.Client.Pupils.QueryPupils(null, null);
+        if (!pupils.Ok || pupils.Data == null)
+        {
+            Snackbar.Add("Failed to search pupils", Severity.Error);
+            return;
+        }
+        _currentPupils = pupils.Data.Rows;
+
+        await LoadPupil();
+        await LoadPayments();
+        
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadPayments()
+    {
+        if (Lesson != null && _currentPupil != null)
+        {
+            var paymentRes = await ApiClient.Client.Payments.QueryPayments(_currentPupil.Id);
+            if (paymentRes is { Ok: true, Data: { } })
+            {
+                _payments = paymentRes.Data.Rows;
+            }
+        }
+    }
+
+    private async Task LoadPupil()
+    {
+        if (Lesson is {PupilId: { } })
+        {
+            var pupilRes = await ApiClient.Client.Pupils.GetPupil(Lesson.PupilId.Value);
+            if (pupilRes is {Ok: true, Data: {}})
+            {
+                _currentPupil = pupilRes.Data;
+            }
+        }
+    }
+
+    private void Delete()
+    {
+        MudDialog.Close(DialogResult.Ok(new DlgResult<LessonDto>(_currentLesson, DialogAction.Delete)));
+    }
+
+    private void Submit()
+    {
+        if (!Date.HasValue)
+        {
+            Snackbar.Add("Please ensure date is set");
+            MudDialog.Cancel();
+            return;
+        }
+        var date = Date.Value;
+        _currentLesson.Start = date.Add(TimeSpan.FromHours(StartHour)).Add(TimeSpan.FromMinutes(StartMinute));
+        _currentLesson.End = _currentLesson.Start.Add(LessonTime);
+
+        _currentLesson.LessonTitle = $"{_currentLesson.LessonType.ToReadableString()}";
+        if (Pupil != null)
+            _currentLesson.LessonTitle += $" with {Pupil.FullName}";
+        
+        MudDialog.Close(DialogResult.Ok(new DlgResult<LessonDto>(_currentLesson, DialogAction.Update)));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    private async void AddPayment()
+    {
+        if (_newPayment is { AmountPaid: 0, Hours: 0 })
+        {
+            Snackbar.Add("Amount paid and hours cannot be 0", Severity.Warning);
+            return;
+        }
+
+        var res = await ApiClient.Client.Payments.AddPayment(_currentPupil!.Id, _newPayment.AmountPaid, _newPayment.Hours, _newPayment.PaymentType);
+        if (res is { Ok: true,Data: { } })
+        {
+            _newPayment = new PaymentDto();
+            await LoadPayments();
+            await LoadPupil();
+        }
+        else
+        {
+            Snackbar.Add("Error adding payment", Severity.Error);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void DeletePayment(PaymentDto payment)
+    {
+        var res = await ApiClient.Client.Payments.DeletePayment(payment.Id);
+        if (!res.Success)
+        {
+            Snackbar.Add("Error deleting payment", Severity.Error);
+            return;
+        }
+        await LoadPupil();
+        await LoadPayments();
+        await InvokeAsync(StateHasChanged);
+    }
+
+}
