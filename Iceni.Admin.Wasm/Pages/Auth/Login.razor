@@ -13,9 +13,15 @@
                 <MudTextField @bind-Value="_username" Immediate Label="Username" AutoFocus/>
                 <MudTextField @bind-Value="_password" Immediate Label="Password" InputType="InputType.Password"/>
 
-                <MudButton FullWidth Variant="Variant.Outlined" 
+                <MudButton FullWidth Variant="Variant.Outlined"
                            Class="my-4"
-                           Color="Color.Success" OnClick="Auth">Login</MudButton>
+                           Color="Color.Success" OnClick="Auth">
+                    @if (_busy)
+                    {
+                        <MudProgressCircular Indeterminate Class="mx-4"/>
+                    }
+                    Login
+                </MudButton>
             </MudCardContent>
         </MudCard>
     </MudStack>
@@ -25,20 +31,25 @@
     private string? _username;
     private string? _password;
 
+    private bool _busy;
 
     public async void Auth()
     {
+        _busy = true;
+        await InvokeAsync(StateHasChanged);
         var res = await ApiClient.Client.Auth.AuthWithPassword(_username ?? string.Empty, _password ?? string.Empty);
         if (!res.Ok || res.Data is null)
         {
             Snackbar.Add("Failed to log in, check your password", Severity.Error);
+            _busy = false;
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
         await ApiClient.SetToken(res.Data);
-        Nav.NavigateTo("/", true);
-
+        _busy = false;
         await InvokeAsync(StateHasChanged);
+        Nav.NavigateTo("/", true);
 
     }
 }
